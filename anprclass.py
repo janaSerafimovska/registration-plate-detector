@@ -13,6 +13,12 @@ class SobelANPR:
         self.max_ar = max_ar
 
     @staticmethod
+    def debug_image_show(caption, image, wait_key=False):
+        cv2.imshow(caption, image)
+        if wait_key:
+            cv2.waitKey(0)
+
+    @staticmethod
     def morphology_operation(gray, rect_kernel):
         black_hat = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, rect_kernel)
 
@@ -22,7 +28,7 @@ class SobelANPR:
 
         return [black_hat, light]
 
-    def locate_license_plate_candidates(self, gray, image):
+    def locate_license_plate_candidates(self, gray, image, keep):
         rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 5))
         morphology = self.morphology_operation(gray, rect_kernel)
         morph = morphology[0]
@@ -37,9 +43,7 @@ class SobelANPR:
         grad_x = grad_x.astype("uint8")
 
         grad_x = cv2.GaussianBlur(grad_x, (5, 5), 0)
-
         grad_x = cv2.morphologyEx(grad_x, cv2.MORPH_CLOSE, rect_kernel)
-
         thresh = cv2.threshold(grad_x, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
 
         thresh = cv2.erode(thresh, None, iterations=2)
@@ -51,13 +55,15 @@ class SobelANPR:
 
         contours = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
-        c = sorted(contours, key=cv2.contourArea, reverse=True)[0]
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)[:keep]
 
         ori_copy = image.copy()
 
-        rect = cv2.minAreaRect(c)
-        box = np.int0(cv2.boxPoints(rect))
-        cv2.drawContours(ori_copy, [box], -1, (0, 255, 0), 2)
+        for c in contours:
+            rect = cv2.minAreaRect(c)
+            box = np.int0(cv2.boxPoints(rect))
+            cv2.drawContours(ori_copy, [box], -1, (0, 255, 0), 2)
+            self.debug_image_show("Contours", ori_copy, True)
 
         return contours
 
@@ -75,7 +81,9 @@ class SobelANPR:
                 continue
             lp_cnt = c
             license_plate = gray[y:y + h, x:x + w]
-            roi = cv2.threshold(license_plate, 255, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+            roi = cv2.threshold(license_plate, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+
+            self.debug_image_show("Licence Plate", license_plate, True)
 
             break
 
@@ -93,7 +101,7 @@ class SobelANPR:
         lp_text = None
 
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        candidates = self.locate_license_plate_candidates(gray, image)
+        candidates = self.locate_license_plate_candidates(gray, image, 5)
         (lp, lpCnt) = self.locate_license_plate(gray, candidates)
 
         if lp is not None:
