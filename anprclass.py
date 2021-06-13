@@ -3,6 +3,7 @@ import numpy as np
 import imutils
 import cv2
 import matplotlib.pyplot as plt
+from skimage.segmentation import clear_border
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
@@ -18,13 +19,15 @@ class SobelANPR:
         if wait_key:
             cv2.waitKey(0)
 
-    @staticmethod
-    def morphology_operation(gray, rect_kernel):
+    def morphology_operation(self, gray, rect_kernel):
         black_hat = cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, rect_kernel)
 
         square_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         light = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, square_kernel)
-        light = cv2.threshold(light, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+        light = cv2.threshold(light, 20, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+
+        self.debug_image_show("Blackhat", black_hat, True)
+        self.debug_image_show("White space detection", light, True)
 
         return [black_hat, light]
 
@@ -49,9 +52,13 @@ class SobelANPR:
         thresh = cv2.erode(thresh, None, iterations=2)
         thresh = cv2.dilate(thresh, None, iterations=3)
 
+        self.debug_image_show("Noise removed", thresh, True)
+
         thresh = cv2.bitwise_and(thresh, thresh, mask=luminance)
         thresh = cv2.dilate(thresh, None, iterations=2)
         thresh = cv2.erode(thresh, None, iterations=1)
+
+        self.debug_image_show("Candidates", thresh, True)
 
         contours = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
@@ -63,8 +70,8 @@ class SobelANPR:
             rect = cv2.minAreaRect(c)
             box = np.int0(cv2.boxPoints(rect))
             cv2.drawContours(ori_copy, [box], -1, (0, 255, 0), 2)
-            self.debug_image_show("Contours", ori_copy, True)
 
+        self.debug_image_show("Contours", ori_copy, True)
         return contours
 
     def locate_license_plate(self, gray, candidates):
@@ -83,8 +90,14 @@ class SobelANPR:
             license_plate = gray[y:y + h, x:x + w]
             roi = cv2.threshold(license_plate, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
 
-            self.debug_image_show("Licence Plate", license_plate, True)
+            ori_copy = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR).copy()
+            rect = cv2.minAreaRect(c)
+            box = np.int0(cv2.boxPoints(rect))
+            cv2.drawContours(ori_copy, [box], -1, (0, 255, 0), 2)
 
+            self.debug_image_show("Licence Plate Detected", ori_copy, True)
+            self.debug_image_show("Licence Plate", license_plate, True)
+            self.debug_image_show("Region of interest", roi, True)
             break
 
         return roi, lp_cnt

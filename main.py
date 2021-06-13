@@ -4,7 +4,7 @@ from anprclass import SobelANPR
 
 
 def cleanup_text(text):
-    text = text.replace("°", "-").replace(")", "").replace("|", "")
+    text = text.replace("°", "-").replace(")", "").replace("|", "").replace("l", "I").replace("&", "6")
     return "".join([c if ord(c) < 128 else "" for c in text]).strip()
 
 
