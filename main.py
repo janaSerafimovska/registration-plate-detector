@@ -32,3 +32,8 @@ if __name__ == '__main__':
 
             (x, y, w, h) = cv2.boundingRect(lpCnt)
             f.write(cleanup_text(lpText) + '\n')
+
+        if lpText is None and lpCnt is None:
+            f.write("License Plate not detected")
+
+    f.close()

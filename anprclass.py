@@ -3,7 +3,6 @@ import numpy as np
 import imutils
 import cv2
 import matplotlib.pyplot as plt
-from skimage.segmentation import clear_border
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
@@ -97,15 +96,19 @@ class SobelANPR:
 
             self.debug_image_show("Licence Plate Detected", ori_copy, True)
             self.debug_image_show("Licence Plate", license_plate, True)
-            self.debug_image_show("Region of interest", roi, True)
+
             break
+
+        if roi is not None:
+            roi = cv2.bitwise_not(roi)
+            roi = imutils.resize(roi, height=80, width=100)
+            self.debug_image_show("Region of interest", roi, True)
 
         return roi, lp_cnt
 
     @staticmethod
     def build_tesseract_options():
-        options = "--oem 3"
-        options += " --psm {}".format(6)
+        options = " --psm {}".format(6)
         options += " -c tessedit_char_whitelist={}".format("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
         return options
@@ -118,9 +121,6 @@ class SobelANPR:
         (lp, lpCnt) = self.locate_license_plate(gray, candidates)
 
         if lp is not None:
-            lp = cv2.bitwise_not(lp)
-            lp = imutils.resize(lp, height=80, width=100)
-
             options = self.build_tesseract_options()
             lp_text = pytesseract.image_to_string(lp, lang='eng', config=options)
 
